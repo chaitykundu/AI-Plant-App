@@ -5,3 +5,7 @@ pydantic
 python-dotenv
 requests
 aiofiles
+transformers 
+torch 
+torchvision 
+pillow
