@@ -1,7 +1,7 @@
 import os
 import aiofiles
 
-UPLOAD_DIR = "uploads"
+UPLOAD_DIR = "upload"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
