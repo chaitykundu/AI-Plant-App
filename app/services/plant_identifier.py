@@ -1,33 +1,53 @@
 from transformers import pipeline
 from PIL import Image
 
-# Load CLIP model (zero-shot)
 classifier = pipeline(
     "zero-shot-image-classification",
     model="openai/clip-vit-base-patch32"
 )
 
-def identify_plant(image_path):
+PLANT_LABELS = [
+    "rose plant",
+    "sunflower plant",
+    "mango tree",
+    "banana plant",
+    "tomato plant"
+]
 
+HEALTH_LABELS = [
+    "healthy leaf",
+    "diseased leaf"
+]
+
+def get_top_result(results):
+    return max(results, key=lambda x: x["score"])
+
+
+def identify_plant(image_path):
     image = Image.open(image_path)
 
-    # Plant-specific labels (you control this)
-    labels = [
-        "rose plant",
-        "sunflower plant",
-        "mango tree",
-        "banana plant",
-        "tomato plant",
-        "healthy leaf",
-        "diseased leaf",
-        "unknown plant"
-    ]
+    # Step 1: plant type
+    plant_results = classifier(image, candidate_labels=PLANT_LABELS)
+    plant_top = get_top_result(plant_results)
 
-    results = classifier(image, candidate_labels=labels)
+    # Step 2: health
+    health_results = classifier(image, candidate_labels=HEALTH_LABELS)
+    health_top = get_top_result(health_results)
 
-    top_result = results[0]
+    plant_name = plant_top["label"]
+    plant_conf = round(plant_top["score"] * 100, 2)
+
+    health_label = health_top["label"]
+    health_conf = round(health_top["score"] * 100, 2)
+
+    health_status = "Healthy" if "healthy" in health_label else "Diseased"
 
     return {
-        "prediction": top_result["label"],
-        "confidence": round(top_result["score"] * 100, 2)
-    } 
+        "success": True,
+        "plant_name": plant_name,
+        "scientific_name": plant_name,
+        "confidence": plant_conf,
+        "health_status": health_status,
+        "health_confidence": health_conf,
+        "message": "Plant identified successfully"
+    }
