@@ -1,24 +1,39 @@
 from fastapi import APIRouter, UploadFile, File
+from datetime import datetime
 
+from app.services.plant_identifier import predict_plant
+from app.services.plant_info_service import get_plant_care
+from app.services.disease_detector import detect_disease
 from app.utils.file_handler import save_upload_file
-from app.services.plant_identifier import identify_plant
 
-# IMPORT RESPONSE SCHEMA
-from app.schemas.response_schema import PlantResponse
+router = APIRouter()
 
-router = APIRouter(
-    prefix="/plant",
-    tags=["Plant AI"]
-)
 
-@router.post(
-    "/identify",
-    response_model=PlantResponse
-)
-async def identify(file: UploadFile = File(...)):
+@router.post("/identify")
+async def identify_plant(file: UploadFile = File(...)):
 
-    file_path = await save_upload_file(file)
+    file_location = await save_upload_file(file)
 
-    result = identify_plant(file_path)
+    prediction = predict_plant(file_location)
 
-    return result
+    if prediction["success"] is False:
+        return prediction
+
+    disease_data = detect_disease(file_location)
+
+    plant = prediction["plant"]
+
+    care_data = get_plant_care(
+        plant["common_name"]
+    )
+
+    return {
+        "success": True,
+        "plant": plant,
+        "confidence": prediction["confidence"],
+        "care_tips": care_data["care_tips"],
+
+        "disease": disease_data,
+
+        "detected_at": datetime.now()
+    }

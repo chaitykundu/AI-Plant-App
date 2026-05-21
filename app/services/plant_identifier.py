@@ -1,53 +1,57 @@
-from transformers import pipeline
-from PIL import Image
+import torch
 
-classifier = pipeline(
-    "zero-shot-image-classification",
-    model="openai/clip-vit-base-patch32"
-)
+from app.models.model_loader import load_model
+from app.services.image_preprocessing import preprocess_image
+from app.core.constants import PLANT_CLASSES
 
-PLANT_LABELS = [
-    "rose plant",
-    "sunflower plant",
-    "mango tree",
-    "banana plant",
-    "tomato plant"
-]
-
-HEALTH_LABELS = [
-    "healthy leaf",
-    "diseased leaf"
-]
-
-def get_top_result(results):
-    return max(results, key=lambda x: x["score"])
+model = load_model()
 
 
-def identify_plant(image_path):
-    image = Image.open(image_path)
+def predict_plant(image_path):
 
-    # Step 1: plant type
-    plant_results = classifier(image, candidate_labels=PLANT_LABELS)
-    plant_top = get_top_result(plant_results)
+    print("\n========== 🌿 PLANT PREDICTION DEBUG ==========")
+    print(f"[DEBUG] Image Path: {image_path}")
 
-    # Step 2: health
-    health_results = classifier(image, candidate_labels=HEALTH_LABELS)
-    health_top = get_top_result(health_results)
+    image_tensor = preprocess_image(image_path)
+    print(f"[DEBUG] Input Tensor Shape: {image_tensor.shape}")
 
-    plant_name = plant_top["label"]
-    plant_conf = round(plant_top["score"] * 100, 2)
+    with torch.no_grad():
+        outputs = model(image_tensor)
 
-    health_label = health_top["label"]
-    health_conf = round(health_top["score"] * 100, 2)
+    print(f"[DEBUG] Raw Model Output: {outputs}")
 
-    health_status = "Healthy" if "healthy" in health_label else "Diseased"
+    probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
+
+    print(f"[DEBUG] Probabilities: {probabilities}")
+
+    confidence, predicted_class = torch.max(probabilities, 0)
+
+    confidence = round(confidence.item() * 100, 2)
+    predicted_class = predicted_class.item()
+
+    print(f"[DEBUG] Predicted Class Index: {predicted_class}")
+    print(f"[DEBUG] Confidence: {confidence}%")
+
+    print(f"[DEBUG] PLANT_CLASSES keys: {list(PLANT_CLASSES.keys())}")
+
+    plant_data = PLANT_CLASSES.get(predicted_class)
+
+    if plant_data is None:
+        print("[DEBUG] ❌ Class not found in PLANT_CLASSES")
+        print("========== END DEBUG ==========\n")
+
+        return {
+            "success": False,
+            "message": "Plant not found",
+            "predicted_class": predicted_class,
+            "confidence": confidence
+        }
+
+    print(f"[DEBUG] ✅ Plant Found: {plant_data}")
+    print("========== END DEBUG ==========\n")
 
     return {
         "success": True,
-        "plant_name": plant_name,
-        "scientific_name": plant_name,
-        "confidence": plant_conf,
-        "health_status": health_status,
-        "health_confidence": health_conf,
-        "message": "Plant identified successfully"
+        "plant": plant_data,
+        "confidence": confidence
     }
