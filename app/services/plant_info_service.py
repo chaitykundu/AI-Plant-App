@@ -13,6 +13,13 @@ PLANT_CARE_DATA = {
             "Grow in sunny place",
             "Avoid overwatering"
         ]
+    },
+    "Papaya": {
+        "care_tips": [
+            "Requires well-drained soil",
+            "Water regularly but avoid waterlogging",
+            "Needs full sun"
+        ]
     }
 }
 
